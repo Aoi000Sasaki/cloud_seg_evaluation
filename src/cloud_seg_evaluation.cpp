@@ -13,6 +13,8 @@
 
 #include <cloud_seg_evaluation/cloud_seg_evaluation.h>
 
+#include <std_msgs/String.h>
+
 namespace cloud_seg_evaluation
 {
 CloudSegEvaluation::CloudSegEvaluation()
@@ -21,6 +23,7 @@ CloudSegEvaluation::CloudSegEvaluation()
   , sub_my_cloud_(nh_, "my_cloud", 10)
   , sync_(SyncPolicy(10), sub_correct_cloud_, sub_my_cloud_)
 {
+  pub_debug_msg = nh_.advertise<std_msgs::String>("debug_msg", 1);
   sync_.registerCallback(boost::bind(&CloudSegEvaluation::sync_callback, this, _1, _2));
 }
 
@@ -31,7 +34,9 @@ CloudSegEvaluation::~CloudSegEvaluation()
 void CloudSegEvaluation::sync_callback(const sensor_msgs::PointCloud2ConstPtr& correct_cloud_msg,
                                           const sensor_msgs::PointCloud2ConstPtr& my_cloud_msg)
 {
-  ROS_INFO("sync_callback");
+  pub_debug_msg.publish(std_msgs::String());
+  // ROS_INFO("sync_callback");
+  printf("crt :%lf my :%lf", correct_cloud_msg->header.stamp.toSec(), my_cloud_msg->header.stamp.toSec());
 }
 
 void CloudSegEvaluation::checkLabelConsistency(const sensor_msgs::PointCloud2ConstPtr& correct_cloud,

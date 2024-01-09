@@ -24,7 +24,7 @@ public:
 private:
   ros::NodeHandle nh_;
   ros::NodeHandle pnh_;
-  ros::Subscriber sub_camera_info_;
+  ros::Publisher pub_debug_msg;
   message_filters::Subscriber<sensor_msgs::PointCloud2> sub_correct_cloud_;
   message_filters::Subscriber<sensor_msgs::PointCloud2> sub_my_cloud_;
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2, sensor_msgs::PointCloud2> SyncPolicy;
