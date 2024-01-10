@@ -34,6 +34,10 @@ install(TARGETS cloud_seg_evaluation
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
+install(DIRECTORY launch
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
+
 if(CATKIN_ENABLE_TESTING)
   find_package(rostest REQUIRED)
   find_package(roslint REQUIRED)

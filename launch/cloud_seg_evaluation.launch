@@ -1,0 +1,6 @@
+<launch>
+  <node pkg="cloud_seg_evaluation" type="cloud_seg_evaluation" name="cloud_seg_evaluation" output="screen">
+    <remap from="correct_cloud" to="/velodyne_points"/>
+    <remap from="my_cloud" to="/colored_cloud"/>
+  </node>
+</launch>
