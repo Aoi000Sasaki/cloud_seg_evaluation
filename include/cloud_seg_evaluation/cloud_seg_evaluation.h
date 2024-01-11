@@ -31,6 +31,16 @@ private:
   message_filters::Synchronizer<SyncPolicy> sync_;
   tf2_ros::Buffer tf_;
   tf2_ros::TransformListener tfl_;
+  float isTimestampMatched;
+  float isPointMatched;
+};
+struct evaluation {
+  std::string label;
+  int positive = 0;
+  int false_positive = 0;
+  int false_negative = 0;
+  int negative = 0;
+  int ignore = 0;
 };
 }  // namespace cloud_seg_evaluation
 

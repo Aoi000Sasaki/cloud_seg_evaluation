@@ -3,4 +3,5 @@
     <remap from="correct_cloud" to="/velodyne_points"/>
     <remap from="my_cloud" to="/colored_cloud"/>
   </node>
+  <node pkg="tf2_ros" type="static_transform_publisher" name="static_transform_publisher" args="0.27 0.06 -0.08 -1.57 0 -1.57 velodyne camera_color_left"/>
 </launch>
