@@ -18,8 +18,8 @@ public:
 
   void sync_callback(const sensor_msgs::PointCloud2ConstPtr& correct_cloud_msg,
                      const sensor_msgs::PointCloud2ConstPtr& my_cloud_msg);
-  void checkLabelConsistency(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& correct_cloud,
-                             const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& my_cloud);
+  void checkLabelConsistency(const sensor_msgs::PointCloud2ConstPtr& correct_cloud_msg,
+                             const sensor_msgs::PointCloud2ConstPtr& my_cloud_msg);
 
 private:
   ros::NodeHandle nh_;
@@ -35,6 +35,7 @@ private:
   float isPointMatched;
 };
 struct evaluation {
+
   std::string label;
   int positive = 0;
   int false_positive = 0;
@@ -42,6 +43,8 @@ struct evaluation {
   int negative = 0;
   int ignore = 0;
 };
+// dictionary1 {key: timestamp, value: dictionary2}
+// dictionary2 {key: label, value: evaluation}
 }  // namespace cloud_seg_evaluation
 
 #endif  // CLOUD_SEG_EVALUATION_H
