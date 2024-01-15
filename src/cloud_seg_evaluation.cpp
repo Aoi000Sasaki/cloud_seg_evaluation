@@ -23,7 +23,9 @@ CloudSegEvaluation::CloudSegEvaluation()
   , sync_(SyncPolicy(10), sub_correct_cloud_, sub_my_cloud_)
   , tfl_(tf_)
 {
-  pub_debug_cloud_ = nh_.advertise<pcl::PointCloud<pcl::PointXYZRGB>>("positive_cloud", 1);
+  pub_positive_cloud_ = nh_.advertise<pcl::PointCloud<pcl::PointXYZRGB>>("positive_cloud", 1);
+  pub_converted_cloud_ = nh_.advertise<pcl::PointCloud<pcl::PointXYZRGB>>("converted_cloud", 1);
+  sub_cloud_ = nh_.subscribe("my_cloud", 1, &CloudSegEvaluation::convertColor, this);
   sync_.registerCallback(boost::bind(&CloudSegEvaluation::sync_callback, this, _1, _2));
   isTimestampMatched = 1.0e-9;
   isPointMatched = 3.0e-5;
@@ -126,7 +128,7 @@ void CloudSegEvaluation::checkLabelConsistency(const sensor_msgs::PointCloud2Con
   pcl::toROSMsg(*correct_cloud_filtered, *correct_cloud_filtered_msg);
   correct_cloud_filtered_msg->header.frame_id = correct_cloud_msg->header.frame_id;
   
-  pub_debug_cloud_.publish(correct_cloud_filtered_msg);
+  pub_positive_cloud_.publish(correct_cloud_filtered_msg);
   saveCloud(pcl_correct_cloud, pcl_my_cloud, correct_cloud_filtered, correct_cloud_msg->header.stamp.toSec());
 }
 
@@ -157,7 +159,7 @@ void CloudSegEvaluation::saveCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
       }
     }
   }
-  
+
   std::string correct_cloud_file = log_dir + "/" + std::to_string(timestamp) + "-correct_cloud.pcd";
   std::string my_cloud_file = log_dir + "/" + std::to_string(timestamp) + "-my_cloud.pcd";
   std::string correct_cloud_filtered_file = log_dir + "/" + std::to_string(timestamp) + "-correct_cloud_filtered.pcd";
@@ -170,6 +172,33 @@ void CloudSegEvaluation::saveCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
   pcl::io::savePCDFileASCII(correct_cloud_file, *pcl_correct_cloud);
   pcl::io::savePCDFileASCII(my_cloud_file, *pcl_my_cloud);
   pcl::io::savePCDFileASCII(correct_cloud_filtered_file, *correct_cloud_filtered);
+}
+
+void CloudSegEvaluation::convertColor(const sensor_msgs::PointCloud2ConstPtr& my_cloud_msg)
+{
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_my_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::fromROSMsg(*my_cloud_msg, *pcl_my_cloud);
+
+  // Transform the point cloud to the same frame
+  pcl_ros::transformPointCloud(my_cloud_msg->header.frame_id, *pcl_my_cloud, *pcl_my_cloud, tf_);
+
+  // Convert the color of pcl_my_cloud according to label_color_map
+  for (auto& label_color : label_color_map) {
+    for (int i = 0; i < pcl_my_cloud->points.size(); i++) {
+      if (pcl_my_cloud->points[i].r == label_color.second[1][0] &&
+          pcl_my_cloud->points[i].g == label_color.second[1][1] &&
+          pcl_my_cloud->points[i].b == label_color.second[1][2]) {
+        pcl_my_cloud->points[i].r = label_color.second[0][0];
+        pcl_my_cloud->points[i].g = label_color.second[0][1];
+        pcl_my_cloud->points[i].b = label_color.second[0][2];
+      }
+    }
+  }
+
+  const sensor_msgs::PointCloud2Ptr converted_cloud_msg(new sensor_msgs::PointCloud2);
+  pcl::toROSMsg(*pcl_my_cloud, *converted_cloud_msg);
+  converted_cloud_msg->header.frame_id = my_cloud_msg->header.frame_id;
+  pub_converted_cloud_.publish(converted_cloud_msg);
 }
 
 void makeLogDir()

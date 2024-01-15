@@ -62,12 +62,15 @@ public:
                  const pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_my_cloud,
                  const pcl::PointCloud<pcl::PointXYZRGB>::Ptr correct_cloud_filtered,
                  int timestamp);
+  void convertColor(const sensor_msgs::PointCloud2ConstPtr& my_cloud_msg);
   std::vector<evaluation> getEvaluationVector();
 
 private:
   ros::NodeHandle nh_;
   ros::NodeHandle pnh_;
-  ros::Publisher pub_debug_cloud_;
+  ros::Publisher pub_positive_cloud_;
+  ros::Publisher pub_converted_cloud_;
+  ros::Subscriber sub_cloud_;
   message_filters::Subscriber<sensor_msgs::PointCloud2> sub_correct_cloud_;
   message_filters::Subscriber<sensor_msgs::PointCloud2> sub_my_cloud_;
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2, sensor_msgs::PointCloud2> SyncPolicy;
@@ -78,11 +81,10 @@ private:
   float isPointMatched;
   std::vector<evaluation> evaluation_vector;
 };
-// std::string log_dir = "/home/user/ws/src/cloud_seg_evaluation/logs/";
-std::string log_dir = "/share/private/29th/sasaki/cloud_seg_evaluation/logs/";
+std::string log_dir = "/home/user/ws/src/cloud_seg_evaluation/logs/";
+// std::string log_dir = "/share/private/29th/sasaki/cloud_seg_evaluation/logs/";
 bool is_log_dir_created = false;
-void makeLogDir();
-void writeEvaluationLog(std::vector<evaluation> evaluation_vector);
+void makeLogDir();// void convertColor();
 }  // namespace cloud_seg_evaluation
 
 #endif  // CLOUD_SEG_EVALUATION_H
