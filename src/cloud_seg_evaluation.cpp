@@ -62,7 +62,6 @@ void CloudSegEvaluation::checkLabelConsistency(const sensor_msgs::PointCloud2Con
               return p1.x > p2.x;
             });
 
-
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr correct_cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
   int max_iter = std::min(pcl_correct_cloud->points.size(), pcl_my_cloud->points.size());
   bool is_unmatch_printed = false;
@@ -128,11 +127,49 @@ void CloudSegEvaluation::checkLabelConsistency(const sensor_msgs::PointCloud2Con
   correct_cloud_filtered_msg->header.frame_id = correct_cloud_msg->header.frame_id;
   
   pub_debug_cloud_.publish(correct_cloud_filtered_msg);
+  saveCloud(pcl_correct_cloud, pcl_my_cloud, correct_cloud_filtered, correct_cloud_msg->header.stamp.toSec());
 }
 
 std::vector<evaluation> CloudSegEvaluation::getEvaluationVector()
 {
   return evaluation_vector;
+}
+
+void CloudSegEvaluation::saveCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_correct_cloud,
+                                   const pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_my_cloud,
+                                   const pcl::PointCloud<pcl::PointXYZRGB>::Ptr correct_cloud_filtered,
+                                   int timestamp)
+{
+  if (!is_log_dir_created) {
+    printf("log dir is not created\n");
+    return;
+  }
+
+  // Convert the color of pcl_my_cloud according to label_color_map
+  for (auto& label_color : label_color_map) {
+    for (int i = 0; i < pcl_my_cloud->points.size(); i++) {
+      if (pcl_my_cloud->points[i].r == label_color.second[1][0] &&
+          pcl_my_cloud->points[i].g == label_color.second[1][1] &&
+          pcl_my_cloud->points[i].b == label_color.second[1][2]) {
+        pcl_my_cloud->points[i].r = label_color.second[0][0];
+        pcl_my_cloud->points[i].g = label_color.second[0][1];
+        pcl_my_cloud->points[i].b = label_color.second[0][2];
+      }
+    }
+  }
+  
+  std::string correct_cloud_file = log_dir + "/" + std::to_string(timestamp) + "-correct_cloud.pcd";
+  std::string my_cloud_file = log_dir + "/" + std::to_string(timestamp) + "-my_cloud.pcd";
+  std::string correct_cloud_filtered_file = log_dir + "/" + std::to_string(timestamp) + "-correct_cloud_filtered.pcd";
+  pcl_correct_cloud->width = pcl_correct_cloud->points.size();
+  pcl_my_cloud->width = pcl_my_cloud->points.size();
+  correct_cloud_filtered->width = correct_cloud_filtered->points.size();
+  pcl_correct_cloud->height = 1;
+  pcl_my_cloud->height = 1;
+  correct_cloud_filtered->height = 1;
+  pcl::io::savePCDFileASCII(correct_cloud_file, *pcl_correct_cloud);
+  pcl::io::savePCDFileASCII(my_cloud_file, *pcl_my_cloud);
+  pcl::io::savePCDFileASCII(correct_cloud_filtered_file, *correct_cloud_filtered);
 }
 
 void makeLogDir()

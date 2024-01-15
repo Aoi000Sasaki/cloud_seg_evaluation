@@ -58,6 +58,10 @@ public:
                      const sensor_msgs::PointCloud2ConstPtr& my_cloud_msg);
   void checkLabelConsistency(const sensor_msgs::PointCloud2ConstPtr& correct_cloud_msg,
                              const sensor_msgs::PointCloud2ConstPtr& my_cloud_msg);
+  void saveCloud(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_correct_cloud,
+                 const pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_my_cloud,
+                 const pcl::PointCloud<pcl::PointXYZRGB>::Ptr correct_cloud_filtered,
+                 int timestamp);
   std::vector<evaluation> getEvaluationVector();
 
 private:
@@ -74,7 +78,8 @@ private:
   float isPointMatched;
   std::vector<evaluation> evaluation_vector;
 };
-std::string log_dir = "/home/user/ws/src/cloud_seg_evaluation/logs/";
+// std::string log_dir = "/home/user/ws/src/cloud_seg_evaluation/logs/";
+std::string log_dir = "/share/private/29th/sasaki/cloud_seg_evaluation/logs/";
 bool is_log_dir_created = false;
 void makeLogDir();
 void writeEvaluationLog(std::vector<evaluation> evaluation_vector);
