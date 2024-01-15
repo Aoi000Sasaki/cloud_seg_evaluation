@@ -8,39 +8,14 @@
 #include <pcl_ros/transforms.h>
 #include <algorithm>
 #include <pcl/point_types.h>
+#include <chrono>
+#include <ctime>
+#include <iomanip>
 
 #include <cloud_seg_evaluation/cloud_seg_evaluation.h>
 
 namespace cloud_seg_evaluation
 {
-// label_color_map[label] = {{correct_cloud RGB}, {my_cloud RGB}}
-std::map<std::string, std::array<std::array<int, 3>, 2>> label_color_map = {
-// label                        correct_cloud     my_cloud
-  {"Unlabeled",               {{{0  , 0  , 0  },  {0  , 0  , 0  }}}},
-  {"Car",                     {{{100, 150, 245},  {0  , 0  , 142}}}},
-  {"Bicycle",                 {{{100, 230, 245},  {119, 11 , 32 }}}},
-  {"Bus",                     {{{100, 80 , 250},  {0  , 60 , 100}}}},
-  {"Motorcycle",              {{{30 , 60 , 150},  {0  , 0  , 230}}}},
-  {"Truck",                   {{{80 , 30 , 180},  {0  , 0  , 70 }}}},
-  {"Person",                  {{{255, 30 , 30 },  {220, 20 , 60 }}}},
-  {"Bicyclist",               {{{255, 40 , 200},  {255, 0  , 0  }}}},
-  {"Road",                    {{{255, 0  , 255},  {128, 64 , 128}}}},
-  {"Parking",                 {{{255, 150, 255},  {250, 170, 160}}}},
-  {"Sidewalk",                {{{75 , 0  , 75 },  {244, 35 , 232}}}},
-  {"Other-ground",            {{{175, 0  , 75 },  {81 , 0  , 81 }}}},
-  {"Building",                {{{255, 200, 0  },  {70 , 70 , 70 }}}},
-  {"Fence",                   {{{255, 120, 50 },  {190, 153, 153}}}},
-  {"Vegetation",              {{{0  , 175, 0  },  {107, 142, 35 }}}},
-  {"Terrain",                 {{{150, 240, 80 },  {152, 251, 152}}}},
-  {"Pole",                    {{{255, 240, 150},  {153, 153, 153}}}},
-  {"Traffic-sign",            {{{255, 0  , 0  },  {220, 220, 0  }}}},
-};
-// ignore color in my_cloud (behind the camera, out of sight)
-std::list<std::array<int, 3>> ignore_color = {
-  {200, 0, 0},
-  {0, 200, 0},
-};
-
 CloudSegEvaluation::CloudSegEvaluation()
   : pnh_("~")
   , sub_correct_cloud_(nh_, "correct_cloud", 10)
@@ -89,12 +64,11 @@ void CloudSegEvaluation::checkLabelConsistency(const sensor_msgs::PointCloud2Con
 
 
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr correct_cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
-  std::list<evaluation> evaluation_list;
   int max_iter = std::min(pcl_correct_cloud->points.size(), pcl_my_cloud->points.size());
   bool is_unmatch_printed = false;
 
   for (auto& label_color : label_color_map) {
-    evaluation eval = {label_color.first, 0, 0, 0, 0};
+    evaluation eval = {correct_cloud_msg->header.stamp.toSec(), 0, 0, label_color.first, 0, 0, 0, 0, 0};
 
     int pointMatch = 0;
     int pointUnmatch = 0;
@@ -138,27 +112,84 @@ void CloudSegEvaluation::checkLabelConsistency(const sensor_msgs::PointCloud2Con
       }
     }
     if (!is_unmatch_printed) {
-      ROS_INFO("--- unmatch/match points:  %d/%d ---", pointUnmatch, pointMatch);
+      ROS_INFO("timestamp : %d\t unmatch/match points : %d/%d", eval.timestamp, pointUnmatch, pointMatch);
     }
-    ROS_INFO("label: %s, positive: %d, false_positive: %d, false_negative: %d, negative: %d, ignore: %d",
+    ROS_INFO("  %-15s positive: %-6d false_positive: %-6d false_negative: %-6d negative: %-6d ignore: %-7d",
              eval.label.c_str(), eval.positive, eval.false_positive, eval.false_negative, eval.negative, eval.ignore);
+    eval.unmatch = pointUnmatch;
+    eval.match = pointMatch;
 
-    evaluation_list.push_back(eval);
+    evaluation_vector.push_back(eval);
     is_unmatch_printed = true;
   }
 
   const sensor_msgs::PointCloud2Ptr correct_cloud_filtered_msg(new sensor_msgs::PointCloud2);
   pcl::toROSMsg(*correct_cloud_filtered, *correct_cloud_filtered_msg);
-  correct_cloud_filtered_msg->header.frame_id = pcl_correct_cloud->header.frame_id;
+  correct_cloud_filtered_msg->header.frame_id = correct_cloud_msg->header.frame_id;
   
   pub_debug_cloud_.publish(correct_cloud_filtered_msg);
+}
+
+std::vector<evaluation> CloudSegEvaluation::getEvaluationVector()
+{
+  return evaluation_vector;
+}
+
+void makeLogDir()
+{
+  // Get current time
+  auto now = std::chrono::system_clock::now();
+  std::time_t current_time = std::chrono::system_clock::to_time_t(now);
+
+  // Format current time as 'YYYY-MM-DD-HH:MM:SS'
+  std::stringstream ss;
+  ss << std::put_time(std::localtime(&current_time), "%Y-%m-%d-%H:%M:%S");
+  std::string current_time_str = ss.str();
+  log_dir = log_dir + current_time_str;
+
+  if (mkdir(log_dir.c_str(), 0777) == -1) {
+    printf("log dir cannot be created (maybe already exists)\n");
+  } else {
+    is_log_dir_created = true;
+    printf("log dir (%s) created\n", log_dir.c_str());
+  }
+}
+
+void writeEvaluationLog(std::vector<evaluation> evaluation_vector)
+{
+  if (!is_log_dir_created) {
+    printf("log dir is not created\n");
+    return;
+  }
+
+  std::string log_file = log_dir + "/evaluations.csv";
+  std::ofstream ofs(log_file);
+  if (!ofs) {
+    printf("log file cannot be created\n");
+    return;
+  }
+
+  ofs << "timestamp,unmatch,match,label,positive,false_positive,false_negative,negative,ignore" << std::endl;
+  for (auto& eval : evaluation_vector) {
+    ofs << eval.timestamp << "," << eval.unmatch << "," << eval.match << "," << eval.label << "," << eval.positive << ","
+        << eval.false_positive << "," << eval.false_negative << "," << eval.negative << "," << eval.ignore << std::endl;
+  }
+  ofs.close();
+  printf("log file (%s) created\n", log_file.c_str());
 }
 }  // namespace cloud_seg_evaluation
 
 int main(int arg, char** argv)
 {
+  cloud_seg_evaluation::makeLogDir();
   ros::init(arg, argv, "cloud_seg_evaluation");
   cloud_seg_evaluation::CloudSegEvaluation node;
-  ros::spin();
+
+  while (ros::ok()) {
+    ros::spinOnce();
+  }
+
+  cloud_seg_evaluation::writeEvaluationLog(node.getEvaluationVector());
+
   return 0;
 }
