@@ -2,7 +2,7 @@ import pandas as pd
 from typing import Dict
 
 logdir_path = "/home/user/ws/src/cloud_seg_evaluation/logs/"
-file_path = logdir_path + "2024-01-15-10:01:40/evaluations.csv"
+file_path = logdir_path + "2024-01-25-04:09:22/evaluations.csv"
 num_classes = 18
 
 data = pd.read_csv(file_path)
